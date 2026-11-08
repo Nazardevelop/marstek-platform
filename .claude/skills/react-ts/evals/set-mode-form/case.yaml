@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: set-mode-form
+expected_outcome: |
+  Typed mutation with confirmation, disabled while pending, query invalidation, and an RTL test with mocked network.

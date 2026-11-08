@@ -1,0 +1,30 @@
+# Git hooks managed by pre-commit (https://pre-commit.com).
+# Setup once per clone:  uv tool install pre-commit && pre-commit install
+# Run on everything:     pre-commit run --all-files
+repos:
+  # Secret scanner: API keys, tokens, private keys (rules + entropy).
+  # Needs the gitleaks binary on PATH:  brew install gitleaks
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: gitleaks (scan staged changes for secrets)
+        language: system
+        entry: gitleaks git --pre-commit --staged --redact --no-banner --verbose
+        pass_filenames: false
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-merge-conflict
+
+  - repo: local
+    hooks:
+      - id: no-env-files
+        name: Block .env files (only .env.example is allowed)
+        language: fail
+        entry: ".env files hold secrets and must not be committed:"
+        files: '(^|/)\.env(\..+)?$'
+        exclude: '(^|/)\.env\.example$'

@@ -1,0 +1,1214 @@
+openapi: 3.0.3
+info:
+  title: Marstek Platform API
+  version: 1.0.0
+paths:
+  /api/v1/assistant/chat/:
+    post:
+      operationId: v1_assistant_chat_create
+      description: Ask the assistant. ⚠️ Currently a mock that replies 'in progress'.
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - json
+          - sse
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            text/event-stream:
+              schema:
+                type: string
+          description: 'SSE: `delta` events {text}, then one `done` event. MOCK for
+            now.'
+  /api/v1/devices/:
+    get:
+      operationId: v1_devices_list
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+          description: ''
+  /api/v1/devices/{device_id}/:
+    get:
+      operationId: v1_devices_retrieve
+      description: Device info + capabilities. Re-reads model/firmware; if offline,
+        returns stored info.
+      parameters:
+      - in: path
+        name: device_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+          description: ''
+    patch:
+      operationId: v1_devices_partial_update
+      description: Rename the device or change the address the backend uses.
+      parameters:
+      - in: path
+        name: device_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDevice'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedDevice'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDevice'
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+          description: ''
+  /api/v1/devices/{device_id}/energy/daily/:
+    get:
+      operationId: v1_devices_energy_daily_list
+      description: Energy per local day (Wh), from the device's cumulative counters.
+        Oldest first.
+      parameters:
+      - in: query
+        name: days
+        schema:
+          type: integer
+          maximum: 90
+          minimum: 1
+          default: 7
+      - in: path
+        name: device_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DailyEnergy'
+          description: ''
+  /api/v1/devices/{device_id}/factory-reset/:
+    post:
+      operationId: v1_devices_factory_reset_create
+      description: ⚠️ Factory reset. `confirm_name` must exactly match the device
+        name.
+      parameters:
+      - in: path
+        name: device_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FactoryReset'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FactoryReset'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FactoryReset'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetResult'
+          description: ''
+  /api/v1/devices/{device_id}/history/:
+    get:
+      operationId: v1_devices_history_retrieve
+      description: Bucketed averages for charts (24h → 5 min, 7d → 30 min, 30d → 2
+        h buckets).
+      parameters:
+      - in: path
+        name: device_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: metrics
+        schema:
+          type: string
+          minLength: 1
+        description: 'Comma-separated, any of: soc_pct, battery_w, pv_w, grid_w, offgrid_w,
+          ct_total_w'
+      - in: query
+        name: range
+        schema:
+          enum:
+          - 24h
+          - 7d
+          - 30d
+          type: string
+          default: 24h
+          minLength: 1
+        description: |-
+          * `24h` - 24h
+          * `7d` - 7d
+          * `30d` - 30d
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/History'
+          description: ''
+  /api/v1/devices/{device_id}/mode/:
+    get:
+      operationId: v1_devices_mode_retrieve
+      parameters:
+      - in: path
+        name: device_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeStatus'
+          description: ''
+    post:
+      operationId: v1_devices_mode_create
+      description: Set the operating mode. Manual mode programs each slot with its
+        own SetMode call.
+      parameters:
+      - in: path
+        name: device_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetMode'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SetMode'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SetMode'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeWriteResult'
+          description: ''
+  /api/v1/devices/{device_id}/network/:
+    get:
+      operationId: v1_devices_network_retrieve
+      parameters:
+      - in: path
+        name: device_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Network'
+          description: ''
+  /api/v1/devices/{device_id}/settings/ble-adv/:
+    post:
+      operationId: v1_devices_settings_ble_adv_create
+      summary: Bluetooth advertising on/off
+      parameters:
+      - in: path
+        name: device_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Toggle'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Toggle'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Toggle'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetResult'
+          description: ''
+  /api/v1/devices/{device_id}/settings/dod/:
+    post:
+      operationId: v1_devices_settings_dod_create
+      summary: Set depth of discharge
+      parameters:
+      - in: path
+        name: device_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dod'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Dod'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Dod'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetResult'
+          description: ''
+  /api/v1/devices/{device_id}/settings/led/:
+    post:
+      operationId: v1_devices_settings_led_create
+      summary: Turn the LED on/off
+      parameters:
+      - in: path
+        name: device_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Toggle'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Toggle'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Toggle'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetResult'
+          description: ''
+  /api/v1/devices/{device_id}/settings/power-version/:
+    post:
+      operationId: v1_devices_settings_power_version_create
+      summary: Set the power version
+      parameters:
+      - in: path
+        name: device_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PowerVersion'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PowerVersion'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PowerVersion'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetResult'
+          description: ''
+  /api/v1/devices/{device_id}/status/:
+    get:
+      operationId: v1_devices_status_retrieve
+      description: 'Live dashboard data. `stale: true` = device unreachable, showing
+        last-known values.'
+      parameters:
+      - in: path
+        name: device_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+          description: ''
+  /api/v1/devices/discover/:
+    post:
+      operationId: v1_devices_discover_create
+      description: Broadcast on the LAN (~2 s) and register every device that answers.
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+          description: ''
+  /api/v1/health/:
+    get:
+      operationId: v1_health_retrieve
+      description: Liveness check for the API itself (does not touch the device).
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: ''
+components:
+  schemas:
+    ActionEnum:
+      enum:
+      - disable
+      - charge
+      - discharge
+      - auto
+      type: string
+      description: |-
+        * `disable` - disable
+        * `charge` - charge
+        * `discharge` - discharge
+        * `auto` - auto
+    Battery:
+      type: object
+      properties:
+        soc_pct:
+          type: number
+          format: double
+          nullable: true
+        charge_allowed:
+          type: boolean
+          nullable: true
+        discharge_allowed:
+          type: boolean
+          nullable: true
+        temperature_c:
+          type: number
+          format: double
+          nullable: true
+        remaining_wh:
+          type: number
+          format: double
+          nullable: true
+        rated_wh:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - charge_allowed
+      - discharge_allowed
+      - rated_wh
+      - remaining_wh
+      - soc_pct
+      - temperature_c
+    Bluetooth:
+      type: object
+      properties:
+        state:
+          type: string
+          nullable: true
+        mac:
+          type: string
+          nullable: true
+      required:
+      - mac
+      - state
+    Capabilities:
+      type: object
+      properties:
+        pv:
+          type: boolean
+        system_settings:
+          type: boolean
+        power_version:
+          type: boolean
+        factory_reset:
+          type: boolean
+        manual_slots:
+          type: integer
+        manual_action:
+          type: boolean
+      required:
+      - factory_reset
+      - manual_action
+      - manual_slots
+      - power_version
+      - pv
+      - system_settings
+    ChatContext:
+      type: object
+      properties:
+        route:
+          type: string
+          description: e.g. /stats
+          maxLength: 200
+        device_id:
+          type: integer
+        extra:
+          type: object
+          additionalProperties: {}
+          description: 'Page state, e.g. {range: ''7d''}'
+    ChatMessage:
+      type: object
+      properties:
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        content:
+          type: string
+          maxLength: 4000
+      required:
+      - content
+      - role
+    ChatRequest:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+        context:
+          $ref: '#/components/schemas/ChatContext'
+      required:
+      - messages
+    Ct:
+      type: object
+      properties:
+        connected:
+          type: boolean
+        phase_a_w:
+          type: number
+          format: double
+          nullable: true
+        phase_b_w:
+          type: number
+          format: double
+          nullable: true
+        phase_c_w:
+          type: number
+          format: double
+          nullable: true
+        total_w:
+          type: number
+          format: double
+          nullable: true
+        import_wh:
+          type: number
+          format: double
+          nullable: true
+        export_wh:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - connected
+      - export_wh
+      - import_wh
+      - phase_a_w
+      - phase_b_w
+      - phase_c_w
+      - total_w
+    DailyEnergy:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        pv_wh:
+          type: number
+          format: double
+          nullable: true
+        grid_import_wh:
+          type: number
+          format: double
+          nullable: true
+        grid_export_wh:
+          type: number
+          format: double
+          nullable: true
+        load_wh:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - date
+      - grid_export_wh
+      - grid_import_wh
+      - load_wh
+      - pv_wh
+    Device:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        host:
+          type: string
+          maxLength: 255
+        port:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        model:
+          type: string
+          readOnly: true
+        firmware:
+          type: integer
+          readOnly: true
+          nullable: true
+        ble_mac:
+          type: string
+          readOnly: true
+        wifi_mac:
+          type: string
+          readOnly: true
+        last_seen:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        online:
+          type: boolean
+          readOnly: true
+        capabilities:
+          allOf:
+          - $ref: '#/components/schemas/Capabilities'
+          readOnly: true
+      required:
+      - ble_mac
+      - capabilities
+      - firmware
+      - host
+      - id
+      - last_seen
+      - model
+      - online
+      - wifi_mac
+    Dod:
+      type: object
+      properties:
+        value:
+          type: integer
+          maximum: 88
+          minimum: 30
+      required:
+      - value
+    Energy:
+      type: object
+      properties:
+        pv_total_wh:
+          type: number
+          format: double
+          nullable: true
+        grid_import_wh:
+          type: number
+          format: double
+          nullable: true
+        grid_export_wh:
+          type: number
+          format: double
+          nullable: true
+        load_total_wh:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - grid_export_wh
+      - grid_import_wh
+      - load_total_wh
+      - pv_total_wh
+    FactoryReset:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/TypeEnum'
+        confirm_name:
+          type: string
+          description: Must exactly match the device name
+      required:
+      - confirm_name
+      - type
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+      - status
+    History:
+      type: object
+      properties:
+        range:
+          type: string
+        bucket_s:
+          type: integer
+        metrics:
+          type: array
+          items:
+            type: string
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryPoint'
+      required:
+      - bucket_s
+      - metrics
+      - points
+      - range
+    HistoryPoint:
+      type: object
+      properties:
+        t:
+          type: string
+          format: date-time
+        soc_pct:
+          type: number
+          format: double
+          nullable: true
+        battery_w:
+          type: number
+          format: double
+          nullable: true
+        pv_w:
+          type: number
+          format: double
+          nullable: true
+        grid_w:
+          type: number
+          format: double
+          nullable: true
+        offgrid_w:
+          type: number
+          format: double
+          nullable: true
+        ct_total_w:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - t
+    ManualSlot:
+      type: object
+      properties:
+        index:
+          type: integer
+          minimum: 0
+          description: Slot number (0-9, E mini 0-5)
+        start:
+          type: string
+        end:
+          type: string
+        weekdays:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeekdaysEnum'
+        power_w:
+          type: integer
+          maximum: 2500
+          minimum: -2500
+        enabled:
+          type: boolean
+        action:
+          allOf:
+          - $ref: '#/components/schemas/ActionEnum'
+          description: |-
+            E mini only
+
+            * `disable` - disable
+            * `charge` - charge
+            * `discharge` - discharge
+            * `auto` - auto
+      required:
+      - enabled
+      - end
+      - index
+      - power_w
+      - start
+      - weekdays
+    ModeEnum:
+      enum:
+      - auto
+      - ai
+      - manual
+      - passive
+      - ups
+      type: string
+      description: |-
+        * `auto` - auto
+        * `ai` - ai
+        * `manual` - manual
+        * `passive` - passive
+        * `ups` - ups
+    ModeStatus:
+      type: object
+      properties:
+        mode:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/ModeEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        grid_w:
+          type: number
+          format: double
+          nullable: true
+        offgrid_w:
+          type: number
+          format: double
+          nullable: true
+        soc_pct:
+          type: number
+          format: double
+          nullable: true
+        ct:
+          type: object
+          additionalProperties: {}
+          nullable: true
+          description: CT meter; only in auto/ai mode
+        fetched_at:
+          type: string
+          format: date-time
+        stale:
+          type: boolean
+      required:
+      - ct
+      - fetched_at
+      - grid_w
+      - mode
+      - offgrid_w
+      - soc_pct
+      - stale
+    ModeWriteResult:
+      type: object
+      properties:
+        set_result:
+          type: boolean
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/SlotResult'
+        current:
+          type: object
+          additionalProperties: {}
+          nullable: true
+          description: Mode read back after the write (ES.GetMode)
+      required:
+      - current
+      - set_result
+    Network:
+      type: object
+      properties:
+        fetched_at:
+          type: string
+          format: date-time
+        stale:
+          type: boolean
+          description: True when the device is unreachable (cached data)
+        wifi:
+          $ref: '#/components/schemas/Wifi'
+        bluetooth:
+          $ref: '#/components/schemas/Bluetooth'
+      required:
+      - bluetooth
+      - fetched_at
+      - stale
+      - wifi
+    NullEnum:
+      enum:
+      - null
+    PatchedDevice:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        host:
+          type: string
+          maxLength: 255
+        port:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        model:
+          type: string
+          readOnly: true
+        firmware:
+          type: integer
+          readOnly: true
+          nullable: true
+        ble_mac:
+          type: string
+          readOnly: true
+        wifi_mac:
+          type: string
+          readOnly: true
+        last_seen:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        online:
+          type: boolean
+          readOnly: true
+        capabilities:
+          allOf:
+          - $ref: '#/components/schemas/Capabilities'
+          readOnly: true
+    Power:
+      type: object
+      properties:
+        pv_w:
+          type: number
+          format: double
+          nullable: true
+        grid_w:
+          type: number
+          format: double
+          nullable: true
+        offgrid_w:
+          type: number
+          format: double
+          nullable: true
+        battery_w:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - battery_w
+      - grid_w
+      - offgrid_w
+      - pv_w
+    PowerVersion:
+      type: object
+      properties:
+        watts:
+          $ref: '#/components/schemas/WattsEnum'
+      required:
+      - watts
+    PvInput:
+      type: object
+      properties:
+        input:
+          type: integer
+        power_w:
+          type: number
+          format: double
+          nullable: true
+        voltage_v:
+          type: number
+          format: double
+          nullable: true
+        current_a:
+          type: number
+          format: double
+          nullable: true
+        active:
+          type: boolean
+      required:
+      - active
+      - current_a
+      - input
+      - power_w
+      - voltage_v
+    RoleEnum:
+      enum:
+      - user
+      - assistant
+      type: string
+      description: |-
+        * `user` - user
+        * `assistant` - assistant
+    SetMode:
+      type: object
+      description: One body for every mode; fields that don't belong to the chosen
+        mode are rejected.
+      properties:
+        mode:
+          $ref: '#/components/schemas/ModeEnum'
+        power_w:
+          type: integer
+          maximum: 2500
+          minimum: -2500
+          description: passive only
+        countdown_s:
+          type: integer
+          maximum: 86400
+          minimum: 1
+          description: passive only
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManualSlot'
+          description: manual only
+      required:
+      - mode
+    SetResult:
+      type: object
+      properties:
+        set_result:
+          type: boolean
+      required:
+      - set_result
+    SlotResult:
+      type: object
+      properties:
+        index:
+          type: integer
+        set_result:
+          type: boolean
+      required:
+      - index
+      - set_result
+    Status:
+      type: object
+      properties:
+        fetched_at:
+          type: string
+          format: date-time
+        stale:
+          type: boolean
+          description: True when the device is unreachable (cached data)
+        battery:
+          $ref: '#/components/schemas/Battery'
+        power:
+          $ref: '#/components/schemas/Power'
+        energy:
+          $ref: '#/components/schemas/Energy'
+        system_soc_pct:
+          type: number
+          format: double
+          nullable: true
+        system_capacity_wh:
+          type: number
+          format: double
+          nullable: true
+        ct:
+          $ref: '#/components/schemas/Ct'
+        mode:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/ModeEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        pv:
+          type: array
+          items:
+            $ref: '#/components/schemas/PvInput'
+          nullable: true
+          description: null when the model has no PV
+      required:
+      - battery
+      - ct
+      - energy
+      - fetched_at
+      - mode
+      - power
+      - pv
+      - stale
+      - system_capacity_wh
+      - system_soc_pct
+    Toggle:
+      type: object
+      properties:
+        'on':
+          type: boolean
+      required:
+      - 'on'
+    TypeEnum:
+      enum:
+      - 1
+      - 2
+      type: integer
+      description: |-
+        * `1` - Reset and clear accumulated data
+        * `2` - Reset and keep accumulated data
+    WattsEnum:
+      enum:
+      - 800
+      - 1200
+      - 1500
+      - 2200
+      - 2500
+      type: integer
+      description: |-
+        * `800` - 800
+        * `1200` - 1200
+        * `1500` - 1500
+        * `2200` - 2200
+        * `2500` - 2500
+    WeekdaysEnum:
+      enum:
+      - mon
+      - tue
+      - wed
+      - thu
+      - fri
+      - sat
+      - sun
+      type: string
+      description: |-
+        * `mon` - mon
+        * `tue` - tue
+        * `wed` - wed
+        * `thu` - thu
+        * `fri` - fri
+        * `sat` - sat
+        * `sun` - sun
+    Wifi:
+      type: object
+      properties:
+        ssid:
+          type: string
+          nullable: true
+        rssi_dbm:
+          type: number
+          format: double
+          nullable: true
+        ip:
+          type: string
+          nullable: true
+        gateway:
+          type: string
+          nullable: true
+        netmask:
+          type: string
+          nullable: true
+        dns:
+          type: string
+          nullable: true
+        mac:
+          type: string
+          nullable: true
+      required:
+      - dns
+      - gateway
+      - ip
+      - mac
+      - netmask
+      - rssi_dbm
+      - ssid

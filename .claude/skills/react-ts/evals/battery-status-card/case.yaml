@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: battery-status-card
+expected_outcome: |
+  Typed API client + query hook + component with loading/error states, polling via the data layer, no fetch in the component.

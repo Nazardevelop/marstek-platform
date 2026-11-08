@@ -1,0 +1,12 @@
+# Extends gitleaks' built-in rules; only adds paths that are known-safe.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Lockfiles, build output and placeholder env example"
+paths = [
+  '''(^|/)uv\.lock$''',
+  '''(^|/)package-lock\.json$''',
+  '''^frontend/dist/''',
+  '''(^|/)\.env\.example$''',
+]
